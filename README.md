@@ -75,7 +75,7 @@ neither the runtime nor Roxa can.
    | File | Size | Needs internet |
    |---|---|---|
    | [Roxa-Setup-3.0.14.exe](https://roxacore.com/dl/Roxa-Setup-3.0.14.exe) | 75.3 MiB | **No** - the .NET Desktop Runtime is packed inside |
-   | [Roxa-Setup-3.0.14-offline.exe](https://roxacore.com/dl/Roxa-Setup-3.0.14-offline.exe) | 19.6 MiB | Only if .NET is missing |
+   | [Roxa-Setup-3.0.14-online.exe](https://roxacore.com/dl/Roxa-Setup-3.0.14-online.exe) | 19.6 MiB | Only if .NET is missing |
 
    Pick the offline one on a slow, filtered or metered connection. Both
    install exactly the same program.
