@@ -9,7 +9,7 @@ link and connect in one click.**
 ![Version](https://img.shields.io/badge/version-3.0.14-brightgreen)
 
 **Download the portable exe (v3.0.14):**
-[github.com/RoxaCore/Roxa/releases/tag/v3.0.14](https://github.com/RoxaCore/Roxa/releases/tag/v3.0.14)
+[github.com/Roxa-Team/Roxa/releases/tag/v3.0.14](https://github.com/Roxa-Team/Roxa/releases/tag/v3.0.14)
 
 If you have a subscription link or a server address from a provider, Roxa is
 what turns it into a working connection: it reads the link, keeps a list of
@@ -103,7 +103,7 @@ restored before the files are removed. The install folder and
 ### Portable (no install)
 
 The same build is also published on the GitHub Releases page —
-**[github.com/RoxaCore/Roxa/releases](https://github.com/RoxaCore/Roxa/releases/latest)**.
+**[github.com/Roxa-Team/Roxa/releases](https://github.com/Roxa-Team/Roxa/releases/latest)**.
 Download `Roxa-<version>-portable.exe` and run it from wherever you put
 it: a single file, no installer, nothing to unpack, and no administrator
 rights until you connect in TUN mode. Servers and settings are stored in

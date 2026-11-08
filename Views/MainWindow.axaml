@@ -1027,8 +1027,8 @@
                 <TextBlock Text="{Binding Converter={x:Static loc:TranslateConverter.Instance}, ConverterParameter=Set_About_Desc}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                 <TextBlock Text="{Binding Converter={x:Static loc:TranslateConverter.Instance}, ConverterParameter=Set_About_Tech}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Content="github.com/RoxaCore/Roxa" Padding="14,6" FontSize="12" CornerRadius="6"
-                          Command="{Binding OpenLinkCommand}" CommandParameter="https://github.com/RoxaCore/Roxa"/>
+                  <Button Content="github.com/Roxa-Team/Roxa" Padding="14,6" FontSize="12" CornerRadius="6"
+                          Command="{Binding OpenLinkCommand}" CommandParameter="https://github.com/Roxa-Team/Roxa"/>
                   <Button Content="roxacore.com" Padding="14,6" FontSize="12" CornerRadius="6"
                           Command="{Binding OpenLinkCommand}" CommandParameter="https://roxacore.com"/>
                 </StackPanel>
