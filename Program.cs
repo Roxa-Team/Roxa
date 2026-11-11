@@ -129,6 +129,12 @@ sealed class Program
                     using var remoteExit = EventWaitHandle.OpenExisting(ExitSignalName);
                     remoteExit.Set();
                 }
+                else
+                {
+                    // Named EventWaitHandle is Windows-only (PlatformNotSupportedException
+                    // on Unix), so other platforms deliver the same request as a file.
+                    UnixSignalFire(ExitSignalFile);
+                }
             }
             catch { }
             return;
@@ -184,9 +190,16 @@ sealed class Program
             bool handedOff = false;
             try
             {
-                using var signal = EventWaitHandle.OpenExisting(ShowSignalName);
-                signal.Set();
-                handedOff = true;
+                if (OperatingSystem.IsWindows())
+                {
+                    using var signal = EventWaitHandle.OpenExisting(ShowSignalName);
+                    signal.Set();
+                    handedOff = true;
+                }
+                else
+                {
+                    handedOff = UnixSignalFire(ShowSignalFile);
+                }
             }
             catch { }
             mutex?.Dispose();
@@ -212,27 +225,39 @@ sealed class Program
         if (Core.AdminHelper.IsRunningAsAdmin())
             System.Threading.Tasks.Task.Run(static () => Core.BootRecoveryTask.EnsureRegistered());
 
-        using var showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignalName);
-        ThreadPool.RegisterWaitForSingleObject(showSignal, static (_, _) =>
+        // The show/exit signals only exist as named handles on Windows. On Unix
+        // the same two requests arrive as files (see UnixSignalFire), watched by
+        // a poll loop instead of the thread pool.
+        EventWaitHandle? showSignal = null;
+        EventWaitHandle? exitSignal = null;
+        if (OperatingSystem.IsWindows())
         {
-            try
+            showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignalName);
+            ThreadPool.RegisterWaitForSingleObject(showSignal, static (_, _) =>
             {
-                if (Application.Current is App app)
-                    app.ShowMainWindow();
-            }
-            catch { }
-        }, null, -1, false);
+                try
+                {
+                    if (Application.Current is App app)
+                        app.ShowMainWindow();
+                }
+                catch { }
+            }, null, -1, false);
 
-        using var exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ExitSignalName);
-        ThreadPool.RegisterWaitForSingleObject(exitSignal, static (_, _) =>
-        {
-            try
+            exitSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ExitSignalName);
+            ThreadPool.RegisterWaitForSingleObject(exitSignal, static (_, _) =>
             {
-                if (Application.Current is App app)
-                    app.ExitApp();
-            }
-            catch { }
-        }, null, -1, false);
+                try
+                {
+                    if (Application.Current is App app)
+                        app.ExitApp();
+                }
+                catch { }
+            }, null, -1, false);
+        }
+        else
+        {
+            StartUnixSignalLoop();
+        }
 
         try
         {
@@ -240,8 +265,82 @@ sealed class Program
         }
         finally
         {
+            showSignal?.Dispose();
+            exitSignal?.Dispose();
             mutex?.Dispose();
         }
+    }
+
+    // Unix file-based substitutes for the two named EventWaitHandles. Both
+    // instances resolve the same directory, so a second launch still brings the
+    // first window forward and `Roxa --exit` still quits it. XDG_RUNTIME_DIR is
+    // per-user and is deleted at logout; the temp fallback keeps a stale file
+    // from ever outliving the session that wrote it.
+    private const string ShowSignalFile = "show.signal";
+    private const string ExitSignalFile = "exit.signal";
+
+    private static string? UnixSignalDirectory()
+    {
+        string dir = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") ?? "";
+        if (string.IsNullOrEmpty(dir))
+            dir = Path.Combine(Path.GetTempPath(), "roxa-" + Environment.UserName);
+        try
+        {
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+        catch { return null; }
+    }
+
+    private static bool UnixSignalFire(string fileName)
+    {
+        try
+        {
+            string? dir = UnixSignalDirectory();
+            if (dir == null) { Console.WriteLine("[signal] fire: no signal dir"); return false; }
+            File.WriteAllText(Path.Combine(dir, fileName), Environment.ProcessId.ToString());
+            Console.WriteLine($"[signal] fire: wrote {Path.Combine(dir, fileName)}");
+            return true;
+        }
+        catch (Exception ex) { Console.WriteLine("[signal] fire failed: " + ex.Message); return false; }
+    }
+
+    private static void StartUnixSignalLoop()
+    {
+        string? dir = UnixSignalDirectory();
+        if (dir == null) return;
+        string exitFile = Path.Combine(dir, ExitSignalFile);
+        string showFile = Path.Combine(dir, ShowSignalFile);
+        // Signals a crashed run left behind must not fire on this startup.
+        try { File.Delete(exitFile); } catch { }
+        try { File.Delete(showFile); } catch { }
+
+        _ = System.Threading.Tasks.Task.Run(async () =>
+        {
+            Console.WriteLine($"[signal] loop started dir={dir}");
+            while (true)
+            {
+                await System.Threading.Tasks.Task.Delay(1000);
+                try
+                {
+                    if (File.Exists(exitFile))
+                    {
+                        try { File.Delete(exitFile); } catch { }
+                        bool hasApp = Application.Current is App;
+                        Console.WriteLine($"[signal] exit file seen, Application.Current={(Application.Current?.GetType().FullName ?? "null")} hasApp={hasApp}");
+                        if (Application.Current is App app) app.ExitApp();
+                        Console.WriteLine("[signal] ExitApp call returned");
+                        continue;
+                    }
+                    if (File.Exists(showFile))
+                    {
+                        try { File.Delete(showFile); } catch { }
+                        if (Application.Current is App app) app.ShowMainWindow();
+                    }
+                }
+                catch (Exception ex) { Console.WriteLine("[signal] loop error: " + ex.Message); }
+            }
+        });
     }
 
     /// <summary>

@@ -526,7 +526,9 @@ public sealed class XrayEngine : IDisposable
                 }
             }
 
-            if (!useTun && setSystemProxy && IsWindows && settings?.LeaveSystemProxyAsIs != true)
+            // No IsWindows gate: SystemProxy picks the right backend per platform
+            // (registry on Windows, gsettings elsewhere) and no-ops where it has none.
+            if (!useTun && setSystemProxy && settings?.LeaveSystemProxyAsIs != true)
             {
                 SystemProxy.GetCurrent(out bool prevEnable, out string prevServer, out string prevOverride);
                 if (prevEnable && SystemProxy.IsDeadLoopback(prevServer))

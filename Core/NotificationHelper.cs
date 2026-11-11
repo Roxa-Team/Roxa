@@ -156,6 +156,11 @@ public static class NotificationHelper
         try
         {
             if (!Enabled) return;
+            if (!OperatingSystem.IsWindows())
+            {
+                NotifySend(title, message, critical: false);
+                return;
+            }
             lock (_lock)
             {
                 if (!EnsureIcon()) return;
@@ -198,6 +203,11 @@ public static class NotificationHelper
         try
         {
             if (!Enabled) return;
+            if (!OperatingSystem.IsWindows())
+            {
+                NotifySend("Roxa", message, critical: true);
+                return;
+            }
             lock (_lock)
             {
                 if (!EnsureIcon()) return;
@@ -218,5 +228,39 @@ public static class NotificationHelper
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// Non-Windows notification through the desktop's notify-send. There is no
+    /// shell32 here, so the Windows balloon has no equivalent; notify-send is
+    /// part of libnotify and present on Xfce/GNOME/KDE alike. A missing binary
+    /// or a hung daemon must never stall the connection path, so the call is
+    /// fire-and-forget with a hard bound.
+    /// </summary>
+    private static void NotifySend(string title, string message, bool critical)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "notify-send",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            psi.ArgumentList.Add("--app-name=Roxa");
+            psi.ArgumentList.Add("-u");
+            psi.ArgumentList.Add(critical ? "critical" : "normal");
+            psi.ArgumentList.Add(title);
+            psi.ArgumentList.Add(message);
+            var p = System.Diagnostics.Process.Start(psi);
+            if (p == null) return;
+            _ = Task.Run(() =>
+            {
+                try { if (!p.WaitForExit(3000)) p.Kill(); }
+                catch { }
+                p.Dispose();
+            });
+        }
+        catch { /* notify-send not installed; notifications are optional */ }
     }
 }

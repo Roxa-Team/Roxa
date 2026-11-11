@@ -41,10 +41,23 @@
     <Content Include="Assets\Flags\CC-BY-4.0.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="engine\**">
+    <!--
+     A Linux package must not carry the Windows engine bundle: xray.exe is a
+     34 MB Windows binary, wintun.dll only exists for the TUN adapter and
+     xray_no_window.* wraps the Windows process. On Linux the engine is
+     downloaded at first run (XrayEngine picks Xray-linux-64.zip), so only
+     the licence texts ship. RuntimeIdentifier is empty for a plain build,
+     which keeps the full bundle for normal Windows builds.
+    -->
+    <Content Include="engine\**"
+             Exclude="engine\xray.exe;engine\wintun.dll;engine\LICENSE-wintun.txt;engine\xray_no_window.ps1;engine\xray_no_window.vbs"
+             Condition="!$(RuntimeIdentifier.StartsWith('linux'))">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="roxa-unblock.cmd">
+    <Content Include="engine\LICENSE;engine\README.md" Condition="$(RuntimeIdentifier.StartsWith('linux'))">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="roxa-unblock.cmd" Condition="!$(RuntimeIdentifier.StartsWith('linux'))">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

@@ -26,9 +26,29 @@ public static class AdminHelper
 {
     public static bool IsRunningAsAdmin()
     {
-        using var identity = WindowsIdentity.GetCurrent();
-        var principal = new WindowsPrincipal(identity);
-        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        if (OperatingSystem.IsWindows())
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+
+        // Unix: only euid 0 means elevated. /proc/self/status is present on
+        // every Linux (the field is "Uid:\treal\teffective\tsaved\tfs"); the
+        // user-name fallback covers the odd system without procfs, where
+        // "root" is the only name that implies privileges.
+        try
+        {
+            foreach (var line in System.IO.File.ReadLines("/proc/self/status"))
+            {
+                if (!line.StartsWith("Uid:", System.StringComparison.Ordinal)) continue;
+                var fields = line.Split((char[]?)null, System.StringSplitOptions.RemoveEmptyEntries);
+                // fields[0] is "Uid:", fields[1] real, fields[2] effective.
+                return fields.Length > 2 && fields[2] == "0";
+            }
+        }
+        catch { /* no procfs: fall through to the name check */ }
+        return Environment.UserName == "root";
     }
 
     public static void RestartAsAdmin()

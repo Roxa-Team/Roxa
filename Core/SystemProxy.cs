@@ -23,12 +23,21 @@ using Microsoft.Win32;
 
 namespace Roxa.Core;
 
-/// <summary>Sets the system proxy. Windows only; a no-op on other platforms.</summary>
+/// <summary>
+/// Sets the system proxy. Windows writes the registry; other platforms write
+/// the GNOME/GTK settings via gsettings, which is what Firefox, Chromium and
+/// every GTK app read on Linux — Xfce has no proxy store of its own, and KDE
+/// (kioslaverc) is not yet covered.
+/// </summary>
 public static class SystemProxy
 {
     public static void Set(string proxy)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+        {
+            ApplyLinux(enable: true, server: proxy);
+            return;
+        }
         using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings");
         key?.SetValue("ProxyEnable", 1, RegistryValueKind.DWord);
         key?.SetValue("ProxyServer", proxy, RegistryValueKind.String);
@@ -38,7 +47,11 @@ public static class SystemProxy
 
     public static void Clear()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+        {
+            ApplyLinux(enable: false, server: null);
+            return;
+        }
         using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings");
         key?.SetValue("ProxyEnable", 0, RegistryValueKind.DWord);
         NotifyChange();
@@ -49,7 +62,7 @@ public static class SystemProxy
         enable = false;
         server = "";
         proxyOverride = "";
-        if (!OperatingSystem.IsWindows()) return false;
+        if (!OperatingSystem.IsWindows()) return GetCurrentLinux(out enable, out server);
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings");
@@ -64,7 +77,11 @@ public static class SystemProxy
 
     public static void Apply(bool enable, string? server, string? proxyOverride)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (!OperatingSystem.IsWindows())
+        {
+            ApplyLinux(enable, enable ? server : null);
+            return;
+        }
         try
         {
             using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Internet Settings");
@@ -75,6 +92,104 @@ public static class SystemProxy
             NotifyChange();
         }
         catch { }
+    }
+
+    // --- Linux (gsettings) -------------------------------------------------
+
+    /// <summary>Writes the proxy into the GNOME/GTK settings every Linux desktop reads.</summary>
+    private static void ApplyLinux(bool enable, string? server)
+    {
+        if (!enable)
+        {
+            // Same semantics as ProxyEnable=0 on Windows: mode off, the previous
+            // host/port kept in place so re-enabling restores them.
+            Gsettings("set", "org.gnome.system.proxy", "mode", "'none'");
+            return;
+        }
+        if (TryParseHostPort(server, out string host, out int port))
+        {
+            // A single HTTP proxy address serves both schemes here, exactly like
+            // one ProxyServer value does on Windows: http:// goes straight, an
+            // https:// URL becomes CONNECT to the same port.
+            string qh = "'" + host.Replace("'", "") + "'";
+            string qp = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            Gsettings("set", "org.gnome.system.proxy.http", "host", qh);
+            Gsettings("set", "org.gnome.system.proxy.http", "port", qp);
+            Gsettings("set", "org.gnome.system.proxy.https", "host", qh);
+            Gsettings("set", "org.gnome.system.proxy.https", "port", qp);
+        }
+        Gsettings("set", "org.gnome.system.proxy", "mode", "'manual'");
+    }
+
+    private static bool GetCurrentLinux(out bool enable, out string server)
+    {
+        enable = false;
+        server = "";
+        var (okMode, mode) = Gsettings("get", "org.gnome.system.proxy", "mode");
+        if (!okMode) return false; // gsettings/dconf unavailable on this system
+        enable = mode.Trim().Trim('\'') == "manual";
+        var (okHost, host) = Gsettings("get", "org.gnome.system.proxy.http", "host");
+        var (okPort, port) = Gsettings("get", "org.gnome.system.proxy.http", "port");
+        if (okHost && okPort)
+        {
+            // gsettings prints strings GVariant-quoted: '127.0.0.1'
+            string h = host.Trim().Trim('\'');
+            if (h.Length > 0 && int.TryParse(port.Trim(), out int p) && p > 0)
+                server = h + ":" + p;
+        }
+        return true;
+    }
+
+    /// <summary>Runs gsettings and returns (success, stdout). Never throws.</summary>
+    private static (bool ok, string output) Gsettings(params string[] args)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "gsettings",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var a in args) psi.ArgumentList.Add(a);
+            using var p = System.Diagnostics.Process.Start(psi);
+            if (p == null) return (false, "");
+            string output = p.StandardOutput.ReadToEnd();
+            _ = p.StandardError.ReadToEnd();
+            if (!p.WaitForExit(4000))
+            {
+                try { p.Kill(); } catch { }
+                return (false, "");
+            }
+            return (p.ExitCode == 0, output.Trim());
+        }
+        catch { return (false, ""); } // gsettings not installed
+    }
+
+    /// <summary>Splits "host:port" (also "[v6]:port" and "http://host:port").</summary>
+    private static bool TryParseHostPort(string? server, out string host, out int port)
+    {
+        host = "";
+        port = 0;
+        if (string.IsNullOrWhiteSpace(server)) return false;
+        string v = server.Trim();
+        int scheme = v.IndexOf("://", System.StringComparison.Ordinal);
+        if (scheme >= 0) v = v[(scheme + 3)..];
+        int slash = v.IndexOf('/');
+        if (slash >= 0) v = v[..slash];
+        if (v.StartsWith('['))
+        {
+            int close = v.IndexOf(']');
+            if (close <= 1 || close + 2 > v.Length || v[close + 1] != ':') return false;
+            host = v[1..close];
+            return int.TryParse(v[(close + 2)..], out port) && port > 0 && port <= 65535;
+        }
+        int c = v.LastIndexOf(':');
+        if (c <= 0) return false;
+        host = v[..c];
+        return int.TryParse(v[(c + 1)..], out port) && port > 0 && port <= 65535;
     }
 
     public static bool IsDeadLoopback(string? server)
