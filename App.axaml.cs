@@ -367,31 +367,23 @@ public partial class App : Application
 
     internal void ExitApp()
     {
-        Console.WriteLine("[exit] ExitApp entered, posting to UI thread");
         Dispatcher.UIThread.Post(() =>
         {
-            Console.WriteLine("[exit] posted action running");
-            try { DisposeTray(); } catch { Console.WriteLine("[exit] tray dispose threw"); }
+            try { DisposeTray(); } catch { }
             try
             {
                 if (MainWindow?.DataContext is MainViewModel vm)
-                {
-                    Console.WriteLine("[exit] shutdown begin");
                     vm.Shutdown();
-                    Console.WriteLine("[exit] shutdown done");
-                }
-                else Console.WriteLine("[exit] no view model");
             }
-            catch (Exception ex) { Console.WriteLine("[exit] shutdown threw: " + ex); }
+            catch { }
             finally
             {
+                // Even if stopping the engine errors, the process must not stay a zombie.
                 try
                 {
                     if (MainWindow != null)
                     {
-                        Console.WriteLine("[exit] force close begin");
                         MainWindow.ForceClose();
-                        Console.WriteLine("[exit] force close done");
                     }
                     else if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
                     {
@@ -400,13 +392,10 @@ public partial class App : Application
                         // stayed alive and --exit silently did nothing. Shutting the
                         // lifetime down closes whatever window is up and ends the
                         // process on every platform.
-                        Console.WriteLine("[exit] lifetime shutdown (no main window)");
                         desktop.Shutdown();
-                        Console.WriteLine("[exit] lifetime shutdown requested");
                     }
-                    else Console.WriteLine("[exit] nothing to close");
                 }
-                catch (Exception ex) { Console.WriteLine("[exit] force close threw: " + ex); }
+                catch { }
             }
         });
     }

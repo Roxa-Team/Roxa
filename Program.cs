@@ -297,12 +297,11 @@ sealed class Program
         try
         {
             string? dir = UnixSignalDirectory();
-            if (dir == null) { Console.WriteLine("[signal] fire: no signal dir"); return false; }
+            if (dir == null) return false;
             File.WriteAllText(Path.Combine(dir, fileName), Environment.ProcessId.ToString());
-            Console.WriteLine($"[signal] fire: wrote {Path.Combine(dir, fileName)}");
             return true;
         }
-        catch (Exception ex) { Console.WriteLine("[signal] fire failed: " + ex.Message); return false; }
+        catch { return false; }
     }
 
     private static void StartUnixSignalLoop()
@@ -317,7 +316,6 @@ sealed class Program
 
         _ = System.Threading.Tasks.Task.Run(async () =>
         {
-            Console.WriteLine($"[signal] loop started dir={dir}");
             while (true)
             {
                 await System.Threading.Tasks.Task.Delay(1000);
@@ -326,10 +324,7 @@ sealed class Program
                     if (File.Exists(exitFile))
                     {
                         try { File.Delete(exitFile); } catch { }
-                        bool hasApp = Application.Current is App;
-                        Console.WriteLine($"[signal] exit file seen, Application.Current={(Application.Current?.GetType().FullName ?? "null")} hasApp={hasApp}");
                         if (Application.Current is App app) app.ExitApp();
-                        Console.WriteLine("[signal] ExitApp call returned");
                         continue;
                     }
                     if (File.Exists(showFile))
@@ -338,7 +333,7 @@ sealed class Program
                         if (Application.Current is App app) app.ShowMainWindow();
                     }
                 }
-                catch (Exception ex) { Console.WriteLine("[signal] loop error: " + ex.Message); }
+                catch { }
             }
         });
     }
