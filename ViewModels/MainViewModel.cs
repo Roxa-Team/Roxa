@@ -200,7 +200,15 @@ public partial class MainViewModel : ViewModelBase
             Core.Storage.SaveSettings(_settings);
             OnPropertyChanged(nameof(DeviceId));
         }
-        if (_settings.UseTunMode && !Core.AdminHelper.IsRunningAsAdmin())
+        // TUN is Windows-only: silently drop the saved flag on other OSes
+        // (no admin dialog — "run as admin" means nothing there yet).
+        if (_settings.UseTunMode && !OperatingSystem.IsWindows())
+        {
+            _settings.UseTunMode = false;
+            Core.Storage.SaveSettings(_settings);
+            _useTunMode = false;
+        }
+        else if (_settings.UseTunMode && !Core.AdminHelper.IsRunningAsAdmin())
         {
             TunDisabledNeedsAdmin = true;
             _settings.UseTunMode = false;
@@ -661,6 +669,8 @@ public partial class MainViewModel : ViewModelBase
 
 
     public Action? ShowAdminWarningHandler { get; set; }
+    /// <summary>Non-Windows: TUN is not available yet — show a plain notice, no admin dialog.</summary>
+    public Action? ShowTunNotSupportedHandler { get; set; }
     public bool TunDisabledNeedsAdmin { get; private set; }
 
 

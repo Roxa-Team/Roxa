@@ -3,7 +3,7 @@
              x:Class="Roxa.App"
              xmlns:local="using:Roxa"
              xmlns:conv="using:Roxa.Converters"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Light">
 
     <Application.DataTemplates>
         <local:ViewLocator />

@@ -118,6 +118,18 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnUseTunModeChanged(bool value)
     {
+        // TUN is Windows-only for now (netsh/WFP code); on Linux/macOS the
+        // "restart as admin" dialog would be a dead end, so block with a plain
+        // "not supported yet" message instead. The revert is deferred: setting
+        // the property synchronously from inside its own change handler
+        // re-enters the binding write and the switch stays visually ON while
+        // the model is OFF.
+        if (value && !OperatingSystem.IsWindows())
+        {
+            Dispatcher.UIThread.Post(() => UseTunMode = false);
+            ShowTunNotSupportedHandler?.Invoke();
+            return;
+        }
         if (value && !AdminHelper.IsRunningAsAdmin())
         {
             UseTunMode = false;

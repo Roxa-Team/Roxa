@@ -113,6 +113,8 @@
   <data name="Dlg_NeedsAdmin" xml:space="preserve"><value>Administrator Access Required</value></data>
   <data name="Dlg_TUNAdminMsg" xml:space="preserve"><value>TUN mode requires Administrator access.&#10;To enable it, the app must be restarted with admin privileges.</value></data>
   <data name="Dlg_LeftoverAdminMsg" xml:space="preserve"><value>Leftover connection from a previous run was found.&#10;To clean it up completely, the app must be restarted with admin privileges.</value></data>
+  <data name="Dlg_TunNotSupportedTitle" xml:space="preserve"><value>TUN Mode Not Available</value></data>
+  <data name="Dlg_TunNotSupportedMsg" xml:space="preserve"><value>TUN mode is currently only supported on Windows.&#10;It will be added to Linux in a future release.</value></data>
   <data name="Dlg_Yes" xml:space="preserve"><value>Yes</value></data>
   <data name="Dlg_No" xml:space="preserve"><value>No</value></data>
   <data name="Dlg_ConfirmDelete" xml:space="preserve"><value>Confirm Delete</value></data>

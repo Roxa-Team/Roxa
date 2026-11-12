@@ -362,6 +362,32 @@ public partial class MainWindow : Window
             btnRestart.Click += (_, _) => { Core.AdminHelper.RestartAsAdmin(); win.Close(); };
             win.ShowDialog(this);
         };
+        vm.ShowTunNotSupportedHandler = () =>
+        {
+            var tr = Localization.TranslationManager.Instance;
+            var btnOk = new Button { Content = tr["Dlg_Continue"], Width = 80 };
+            var win = new Window
+            {
+                Title = tr["Dlg_TunNotSupportedTitle"],
+                Width = 400,
+                Height = 160,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Content = new StackPanel
+                {
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                    Spacing = 15,
+                    Margin = new Avalonia.Thickness(20),
+                    Children =
+                    {
+                        new TextBlock { Text = tr["Dlg_TunNotSupportedMsg"], TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                        btnOk
+                    }
+                }
+            };
+            btnOk.Click += (_, _) => win.Close();
+            win.ShowDialog(this);
+        };
         vm.UpdateShutdownRequested += () => (Application.Current as App)?.ExitApp();
         // The small update window: check → download → install as one modal.
         // Closing it (button or X) cancels the flow; the flow closes it itself
@@ -442,7 +468,8 @@ public partial class MainWindow : Window
             btnCancel.Click += (_, _) => win.Close();
             win.ShowDialog(this);
         };
-        if (vm.TunDisabledNeedsAdmin || Core.TunRecovery.LeftoverNeedsAdmin)
+        // Admin-restart warning is Windows-only; on Linux it would be a dead end.
+        if (OperatingSystem.IsWindows() && (vm.TunDisabledNeedsAdmin || Core.TunRecovery.LeftoverNeedsAdmin))
             Dispatcher.UIThread.Post(() => vm.ShowAdminWarningHandler?.Invoke(), DispatcherPriority.Loaded);
         vm.ConfirmDeleteHandler = async message =>
         {

@@ -121,6 +121,8 @@
   <data name="Dlg_NeedsAdmin" xml:space="preserve"><value>نیاز به دسترسی Administrator</value></data>
   <data name="Dlg_TUNAdminMsg" xml:space="preserve"><value>حالت TUN نیاز به دسترسی Administrator دارد.&#10;برای فعال کردن، برنامه باید مجدداً با دسترسی ادمین اجرا شود.</value></data>
   <data name="Dlg_LeftoverAdminMsg" xml:space="preserve"><value>اتصال باقی‌مانده از اجرای قبلی پیدا شد.&#10;برای پاکسازی کامل، برنامه باید مجدداً با دسترسی ادمین اجرا شود.</value></data>
+  <data name="Dlg_TunNotSupportedTitle" xml:space="preserve"><value>حالت TUN در دسترس نیست</value></data>
+  <data name="Dlg_TunNotSupportedMsg" xml:space="preserve"><value>حالت TUN در حال حاضر فقط در ویندوز پشتیبانی می‌شود.&#10;در نسخه‌های بعدی به لینوکس اضافه خواهد شد.</value></data>
   <data name="Dlg_Yes" xml:space="preserve"><value>بله</value></data>
   <data name="Dlg_No" xml:space="preserve"><value>خیر</value></data>
   <data name="Dlg_ConfirmDelete" xml:space="preserve"><value>تأیید حذف</value></data>
